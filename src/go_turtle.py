@@ -99,7 +99,7 @@ class STATUS_UPDATE(smach.State):
     def __init__(self):
         smach.State.__init__(self,outcomes=["finish"])
         self.status_update_pub = MQTT_PUB()
-        self.status_update_pub = MQTT_PUB.pub_con(broker_ip="localhost",topic_name="status_update"+sys.argv[1],pubmsg="Y")
+        self.status_update_pub = MQTT_PUB.pub_con(broker_ip="localhost",topic_name="status_update",pubmsg="Y"+sys.argv[1])
 
     def execute(self, ud):
         self.status_update_pub.pub_run()
