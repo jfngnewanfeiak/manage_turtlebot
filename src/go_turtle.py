@@ -16,6 +16,7 @@ import smach_ros
 import smach
 from mqtt_interface_sub import MQTT_SUB
 from mqtt_interface_pub import MQTT_PUB
+from position_data import PositionData as PD
 
 def read_target(tf_listener):
     (trans, rot) = tf_listener.lookupTransform("map", "target", rospy.Time(0))
@@ -58,16 +59,16 @@ class WAIT_MQTT(smach.State):
         self.msg_list = msg.split("/")
         self.flag = False
 
-
-
     def execute(self, ud):
         while self.flag:
             pass
         # userdataよりデータの受け渡し
-        
+        ud.msgs = self.msg_list
         self.flag = True
         return "sub"
 
+# req/go/destination
+# req/go/temp_posi
 class ACTION(smach.State):
     def __init__(self):
         smach.State.__init__(self,outcomes=["finish"],input_keys=["msgs"])
@@ -78,14 +79,15 @@ class ACTION(smach.State):
 
 
     def execute(self, ud):
+        data = PD.dist_position[ud.msgs[2]]
         # self.goal_dataの値を埋める
-        self.goal_data.target_pose.pose.position.x = ud.msgs[0]
-        self.goal_data.target_pose.pose.position.y = ud.msgs[1]
-        self.goal_data.target_pose.pose.position.z = ud.msgs[2]
-        self.goal_data.target_pose.pose.orientation.x = ud.msgs[3]
-        self.goal_data.target_pose.pose.orientation.y = ud.msgs[4]
-        self.goal_data.target_pose.pose.orientation.z = ud.msgs[5]
-        self.goal_data.target_pose.pose.orientation.w = ud.msgs[6]
+        self.goal_data.target_pose.pose.position.x = data[0]
+        self.goal_data.target_pose.pose.position.y = data[1]
+        self.goal_data.target_pose.pose.position.z = data[2]
+        self.goal_data.target_pose.pose.orientation.x = data[3]
+        self.goal_data.target_pose.pose.orientation.y = data[4]
+        self.goal_data.target_pose.pose.orientation.z = data[5]
+        self.goal_data.target_pose.pose.orientation.w = data[6]
 
         # actionlib 実行
         self.action_client.send_goal(self.goal_data)
@@ -97,11 +99,13 @@ class ACTION(smach.State):
 
 class STATUS_UPDATE(smach.State):
     def __init__(self):
-        smach.State.__init__(self,outcomes=["finish"])
+        smach.State.__init__(self,outcomes=["finish"],input_keys=["msgs"])
         self.status_update_pub = MQTT_PUB()
-        self.status_update_pub = MQTT_PUB.pub_con(broker_ip="localhost",topic_name="status_update",pubmsg="Y"+sys.argv[1])
+        self.status_update_pub.pub_con(broker_ip="localhost",topic_name="status_update",pubmsg="Y"+sys.argv[1])
 
     def execute(self, ud):
+        split_msg = ud.msgs.split("/")
+        self.status_update_pub.pubmsg_setter(f"status_update/{split_msg[1]}/"+sys.argv[1])
         self.status_update_pub.pub_run()
         return "finish"
 
@@ -115,7 +119,7 @@ if __name__ =="__main__":
     with sm:
         smach.StateMachine.add('WAIT_MQTT',WAIT_MQTT(),transitions={"sub":"ACTION"},remapping={"msgs":"sm_msgs"})
         smach.StateMachine.add("ACTION",ACTION(),transitions={"finish":"STATUS_UPDATE"},remapping={"msgs":"sm_msgs"})
-        smach.StateMachine.add("STATUS_UPDATE",STATUS_UPDATE(),transitions={"finish":"WAIT_MQTT"})
+        smach.StateMachine.add("STATUS_UPDATE",STATUS_UPDATE(),transitions={"finish":"WAIT_MQTT"},remapping={"msgs":"sm_msgs"})
 
     sis = smach_ros.IntrospectionServer("server_name", sm, "/START")
 
