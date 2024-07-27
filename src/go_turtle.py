@@ -56,13 +56,18 @@ class WAIT_MQTT(smach.State):
         self.wait_msg_sub.sub_run(broker_ip="localhost",topic_name="robot_sub"+sys.argv[1],cb=self.callback)
 
     def callback(self,msg):
+        rospy.loginfo("aaaa callback")
         self.msg_list = msg.split("/")
         self.flag = False
+        rospy.loginfo(self.flag)
+
 
     def execute(self, ud):
         while self.flag:
             pass
+        rospy.loginfo("while 抜けた")
         # userdataよりデータの受け渡し
+        rospy.loginfo(self.msg_list)
         ud.msgs = self.msg_list
         self.flag = True
         return "sub"
@@ -104,8 +109,9 @@ class STATUS_UPDATE(smach.State):
         self.status_update_pub.pub_con(broker_ip="localhost",topic_name="status_update",pubmsg="Y"+sys.argv[1])
 
     def execute(self, ud):
-        split_msg = ud.msgs.split("/")
-        self.status_update_pub.pubmsg_setter(f"status_update/{split_msg[1]}/"+sys.argv[1])
+        rospy.loginfo("status update class")
+        rospy.loginfo(ud.msgs)
+        self.status_update_pub.pubmsg_setter(f"status_update/{ud.msgs[2]}/"+sys.argv[1])
         self.status_update_pub.pub_run()
         return "finish"
 

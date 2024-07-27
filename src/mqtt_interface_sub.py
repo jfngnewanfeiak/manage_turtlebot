@@ -27,10 +27,14 @@ class MQTT_SUB:
                 print("Connected to Mqtt Broker")
             else:
                 print("Failed to connect mqtt broker")
+
+        def _on_disconnect():
+            print("disconnect")
         
         client = mqtt.Client()
         client.username_pw_set(self.__username,self.__password)
         client.on_connect = __on_connect
+
         client.connect(self.__broker,self.__port)
         
         return client
@@ -40,10 +44,13 @@ class MQTT_SUB:
         def __on_message(client,ud,msg):
             print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
             # self.__callback(msg.payload.decode())
-            self.__callback()
+            self.__callback(msg.payload.decode())
+            print("callback関数を抜けた")
         
         client.subscribe(self.__topic)
         client.on_message = __on_message
+
+        print("callbackをほんとに抜けた")
     
         
     def sub_run(self,broker_ip:str,topic_name:str,cb):
@@ -54,8 +61,8 @@ class MQTT_SUB:
         client = self.__connect_mqtt()
         self.__subscribe(client=client)
         self.__callback = cb
-        # client.loop_start()
-        client.loop_forever()
+        client.loop_start()
+        # client.loop_forever()
     def callback(self):
         print("callback")
 
